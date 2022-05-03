@@ -14,7 +14,7 @@ locals {
 
   recordsets = {
     for rs in local.records :
-    join(" ", compact(["${rs.name} ${rs.type}", lookup(rs, "set_identifier", "")])) => merge(rs, {
+    join(" ", compact(["${rs.name} ${rs.type}", try(rs.set_identifier, "")])) => merge(rs, {
       records = jsonencode(try(rs.records, null))
     })
   }
@@ -35,25 +35,25 @@ resource "aws_route53_record" "this" {
 
   name                             = each.value.name != "" ? "${each.value.name}.${data.aws_route53_zone.this[0].name}" : data.aws_route53_zone.this[0].name
   type                             = each.value.type
-  ttl                              = lookup(each.value, "ttl", null)
+  ttl                              = try(each.value.ttl, null)
   records                          = jsondecode(each.value.records)
-  set_identifier                   = lookup(each.value, "set_identifier", null)
-  health_check_id                  = lookup(each.value, "health_check_id", null)
-  multivalue_answer_routing_policy = lookup(each.value, "multivalue_answer_routing_policy", null)
-  allow_overwrite                  = lookup(each.value, "allow_overwrite", false)
+  set_identifier                   = try(each.value.set_identifier, null)
+  health_check_id                  = try(each.value.health_check_id, null)
+  multivalue_answer_routing_policy = try(each.value.multivalue_answer_routing_policy, null)
+  allow_overwrite                  = try(each.value.allow_overwrite, false)
 
   dynamic "alias" {
-    for_each = length(keys(lookup(each.value, "alias", {}))) == 0 ? [] : [true]
+    for_each = length(keys(try(each.value.alias, {}))) == 0 ? [] : [true]
 
     content {
       name                   = each.value.alias.name
       zone_id                = try(each.value.alias.zone_id, data.aws_route53_zone.this[0].zone_id)
-      evaluate_target_health = lookup(each.value.alias, "evaluate_target_health", false)
+      evaluate_target_health = try(each.value.alias.evaluate_target_health, false)
     }
   }
 
   dynamic "failover_routing_policy" {
-    for_each = length(keys(lookup(each.value, "failover_routing_policy", {}))) == 0 ? [] : [true]
+    for_each = length(keys(try(each.value.failover_routing_policy, {}))) == 0 ? [] : [true]
 
     content {
       type = each.value.failover_routing_policy.type
@@ -61,7 +61,7 @@ resource "aws_route53_record" "this" {
   }
 
   dynamic "weighted_routing_policy" {
-    for_each = length(keys(lookup(each.value, "weighted_routing_policy", {}))) == 0 ? [] : [true]
+    for_each = length(keys(try(each.value.weighted_routing_policy, {}))) == 0 ? [] : [true]
 
     content {
       weight = each.value.weighted_routing_policy.weight
@@ -69,12 +69,12 @@ resource "aws_route53_record" "this" {
   }
 
   dynamic "geolocation_routing_policy" {
-    for_each = length(keys(lookup(each.value, "geolocation_routing_policy", {}))) == 0 ? [] : [true]
+    for_each = length(keys(try(each.value.geolocation_routing_policy, {}))) == 0 ? [] : [true]
 
     content {
-      continent   = lookup(each.value.geolocation_routing_policy, "continent", null)
-      country     = lookup(each.value.geolocation_routing_policy, "country", null)
-      subdivision = lookup(each.value.geolocation_routing_policy, "subdivision", null)
+      continent   = try(each.value.geolocation_routing_policy.continent, null)
+      country     = try(each.value.geolocation_routing_policy.country, null)
+      subdivision = try(each.value.geolocation_routing_policy.subdivision, null)
     }
   }
 }
